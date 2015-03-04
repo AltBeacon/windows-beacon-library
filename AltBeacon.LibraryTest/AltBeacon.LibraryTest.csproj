@@ -51,6 +51,13 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="src\AltBeacon\Beacon\IdentifierTest.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AltBeacon.Library\AltBeacon.Library.csproj">
+      <Project>{cb062d54-ba72-4ae5-9e1b-6e4a2ca68c30}</Project>
+      <Name>AltBeacon.Library</Name>
+    </ProjectReference>
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
