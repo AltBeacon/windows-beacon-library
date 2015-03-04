@@ -53,6 +53,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="src\AltBeacon\Beacon\IdentifierTest.cs" />
     <Compile Include="src\AltBeacon\Beacon\BeaconTest.cs" />
+    <Compile Include="src\AltBeacon\Beacon\BeaconParserTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AltBeacon.Library\AltBeacon.Library.csproj">
