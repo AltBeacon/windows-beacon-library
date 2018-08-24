@@ -22,8 +22,9 @@
 // KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations
 // under the License.
-namespace AltBeacon.Beacon
+namespace Altbeacon.Beacon
 {
+    using System;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Text;
@@ -53,7 +54,7 @@ namespace AltBeacon.Beacon
     /// <author>
     ///     David G. Young
     /// </author>
-    public class Beacon
+    public class Beacon 
     {
         /// <summary>
         /// Logger Tag
@@ -304,7 +305,7 @@ namespace AltBeacon.Beacon
         }*/
 
         /// <summary>
-        /// Two detected beacons are considered equal if they share the same three identifiers,
+        /// Two detected beacons are considered equal if they share the same three identifiers and MAC address,
         /// regardless of their mDistance or RSSI.
         /// </summary>
         /// <param name="other">
@@ -313,13 +314,12 @@ namespace AltBeacon.Beacon
         /// <returns>
         /// <code>true</code> if two beacons are equal, <code>false</code> otherwise.
         /// </returns>
-        public override bool Equals(object other)
+        public override bool Equals(Object other)
         {
-            if (!(other is Beacon))
-            {
+            if (other == null || !(other is Beacon))
+            { 
                 return false;
             }
-
             Beacon thatBeacon = (Beacon)other;
             if (this.identifiers.Count != thatBeacon.identifiers.Count)
             {
@@ -333,6 +333,12 @@ namespace AltBeacon.Beacon
                 {
                     return false;
                 }
+            }
+
+            // mac address must match
+            if (this.BluetoothAddress != thatBeacon.BluetoothAddress)
+            {
+                return false;
             }
 
             return true;
