@@ -82,7 +82,7 @@ namespace Altbeacon.Beacon
         /// <summary>
         /// Calculated TxPower Pattern
         /// </summary>
-        private static readonly Regex PowerPattern = new Regex("p\\:(\\d+)\\-(\\d+)");
+        private static readonly Regex PowerPattern = new Regex("p\\:(\\d+)\\-(\\d+)\\:?([\\-\\d]+)?");
 
         /// <summary>
         /// Hex Array
@@ -106,6 +106,7 @@ namespace Altbeacon.Beacon
 
         private int? powerStartOffset;
         private int? powerEndOffset;
+        private int powerOneMeterAdjustment = 0;
         private int[] hardwareAssistManufacturers = new int[] { 0x004c };
         #endregion Class Fields
 
@@ -354,6 +355,14 @@ namespace Altbeacon.Beacon
                         int endOffset = int.Parse(group[2].ToString());
                         this.powerStartOffset = startOffset;
                         this.powerEndOffset = endOffset;
+                        if (group.Count > 2  && group[3].ToString() != "")
+                        {
+                            this.powerOneMeterAdjustment = int.Parse(group[3].ToString());
+                        }
+                        else
+                        {
+                            this.powerOneMeterAdjustment = 0;
+                        }
                     }
                     catch (FormatException)
                     {
@@ -465,29 +474,43 @@ namespace Altbeacon.Beacon
 
         public Beacon FromAdvertisement(BluetoothLEAdvertisement advertisement, int rssi, ulong macAddress)
         {
+            IBuffer buffer = null;
+            byte[] bytes = null;
+            var bluetoothDevice = new BluetoothDevice();
             if (advertisement.ManufacturerData.Count > 0)
             {
-                var bluetoothDevice = new BluetoothDevice();
-                bluetoothDevice.Address = BeaconParser.GetMac(macAddress);
                 // var buffer = advertisement.ManufacturerData.GetEnumerator().Current.Data;
                 var dataEnumerator = advertisement.ManufacturerData.GetEnumerator();
                 dataEnumerator.MoveNext();
                 var manufacturerTypeCode = dataEnumerator.Current.CompanyId;
-                var buffer = dataEnumerator.Current.Data;
+                buffer = dataEnumerator.Current.Data;
                 DataReader dataReader = DataReader.FromBuffer(buffer);
                 byte[] bytesWithoutTypeCode = new byte[buffer.Length];
                 dataReader.ReadBytes(bytesWithoutTypeCode);
-                byte[] bytes = new byte[buffer.Length + 2];
+                bytes = new byte[buffer.Length + 2];
                 bytes[0] = (byte)(manufacturerTypeCode & 0xff);
                 bytes[1] = (byte)(manufacturerTypeCode >> 8);
                 // shift up all bytes by 2 to make room for manufacturer code
                 for (int i = 0; i < bytesWithoutTypeCode.Length; i++)
                 {
-                    bytes[i+2] = bytesWithoutTypeCode[i];
+                    bytes[i + 2] = bytesWithoutTypeCode[i];
                 }
-                var beaconParser = new BeaconParser();
-                beaconParser.SetBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24");
-                return beaconParser.FromScanData(bytes, rssi, bluetoothDevice);
+            }
+            // section 22 is service data
+            else if (advertisement.GetSectionsByType(22) != null)
+            {
+                var dataEnumerator = advertisement.GetSectionsByType(22).GetEnumerator();
+                dataEnumerator.MoveNext();
+                buffer = dataEnumerator.Current.Data;
+                DataReader dataReader = DataReader.FromBuffer(buffer);
+                bytes = new byte[buffer.Length];
+                dataReader.ReadBytes(bytes);
+            }
+            bluetoothDevice.Address = BeaconParser.GetMac(macAddress);
+
+            if (bytes != null)
+            {
+                return this.FromScanData(bytes, rssi, bluetoothDevice); ;
             }
             return null;
         }
@@ -830,63 +853,48 @@ namespace Altbeacon.Beacon
         protected Beacon FromScanData(byte[] scanData, int rssi, BluetoothDevice device, Beacon.Builder beaconBuilder)
         {
             int startByte = 0;  // we start at byte 0 instead of 2 because the byte array for Windows 10 APIS starts after the manufacturer code
+
+            if (this.ServiceUuid != null)
+            {
+                if ((scanData[0] == (byte)(this.ServiceUuid & 0xff)) &&
+                    (scanData[1] == (byte)(this.ServiceUuid  >> 8& 0xff))
+                    )
+                {
+                    // for service adverts the first 2 bytes are the 16 bit service uuid, followed by the type code, but that
+                    // is at offset 2 alrady from the pattern so all is good
+                }
+                else
+                {
+                    Logger.Debug("This is not a matching GATT service beacon");
+                    return null;
+                }
+            }
+
             bool patternFound = false;
             int matchingBeaconSize = this.matchingBeaconTypeCodeEndOffset.Value - 
                 this.matchingBeaconTypeCodeStartOffset.Value + 1;
             byte[] typeCodeBytes = LongToByteArray(this.MatchingBeaconTypeCode, matchingBeaconSize);
 
-            while (startByte <= 5)
+            if (startByte + this.matchingBeaconTypeCodeStartOffset.Value + typeCodeBytes.Length <= scanData.Length)
             {
-                if (startByte + this.matchingBeaconTypeCodeStartOffset.Value + typeCodeBytes.Length <= scanData.Length)
+                if (AreByteArraysMatch(scanData, startByte + this.matchingBeaconTypeCodeStartOffset.Value, typeCodeBytes, 0))
                 {
-                    if (AreByteArraysMatch(scanData, startByte + this.matchingBeaconTypeCodeStartOffset.Value, typeCodeBytes, 0))
-                    {
-                        patternFound = true;
-                        break;
-                    }
+                    patternFound = true;
                 }
-
-                startByte++;
             }
+
 
             if (patternFound == false)
             {
-                // This is not a beacon
-                // TODO LogManager
-                /*if (this.ServiceUuid == null)
-                {
-                    TODO LogManager
-                    if (LogManager.isVerboseLoggingEnabled())
-                    {
-                        LogManager.d(TAG, "This is not a matching Beacon advertisement. " + 
-                            "(Was expecting %s. The bytes I see are: %s",
-                            byteArrayToString(typeCodeBytes), bytesToHex(scanData));
-                    }
-                }   
-                else
-                {
-                    if (LogManager.isVerboseLoggingEnabled())
-                    {
-                        LogManager.d(TAG, "This is not a matching Beacon advertisement. " + 
-                            "(Was expecting %s and %s. The bytes I see are: %s", 
-                            byteArrayToString(serviceUuidBytes), 
-                            byteArrayToString(typeCodeBytes), bytesToHex(scanData));
-                    }
-                }*/
+                /*
+                    Logger.Debug("This is not a matching Beacon advertisement. " +
+                        "(Was expecting %s and %s. The bytes I see are: %s",
+                        byteArrayToString(serviceUuidBytes),
+                        byteArrayToString(typeCodeBytes), bytesToHex(scanData));
+                        */
+
+                Logger.Debug("This is not a beacon advertisement.");
                 return null;
-            }
-            else
-            {
-                //// TODO LogManager
-                //// if (LogManager.isVerboseLoggingEnabled())
-                //// {
-                ////     LogManager.d(TAG, "This is a recognized beacon advertisement -- %s seen",
-                ////             byteArrayToString(typeCodeBytes));
-                //// }
-                ////
-                //// TODO LogManager
-                //// LogManager.d(Tag, "This is a recognized beacon advertisement -- " + 
-                ////     getMatchingBeaconTypeCode().ToString("x4") + " seen");
             }
 
             List<Identifier> identifiers = new List<Identifier>();
@@ -922,7 +930,7 @@ namespace Altbeacon.Beacon
                 this.powerStartOffset.Value + startByte,
                 this.powerEndOffset.Value + startByte,
                 false);
-            txPower = int.Parse(powerString);
+            txPower = int.Parse(powerString)+this.powerOneMeterAdjustment;
 
             // make sure it is a signed integer
             if (txPower > 127)

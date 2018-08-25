@@ -395,10 +395,7 @@ namespace Altbeacon.Beacon
         }
 
         /// <summary>
-        /// Estimate the distance to the beacon using the DistanceCalculator set on this class.
-        /// If no DistanceCalculator has been set, return -1 as the distance.
-        /// </summary>
-        /// <see cref="Altbeacon.Beacon.Distance.DistanceCalculator"/>
+        /// Estimate the distance to the beacon
         /// <param name="txPower">
         /// Beacon TxPower.
         /// </param>
@@ -410,16 +407,20 @@ namespace Altbeacon.Beacon
         /// </returns>
         protected static double CalculateDistance(int txPower, double bestRssiAvailable)
         {
-            ////if (Beacon.DistanceCalculator != null)
-            ////{
-            ////    return Beacon.DistanceCalculator.CalculateDistance(txPower, bestRssiAvailable);
-            ////}
-            ////else
-            ////{
-                ////TODO LogManager
-                ////LogManager.e(Tag, "Distance calculator not set.  Distance will bet set to -1");
-                return -1.0;
-            ////}
+            if (txPower != 0 && bestRssiAvailable != 0)
+            {
+                double ratio = bestRssiAvailable * 1.0 / txPower;
+                if (ratio < 1.0)
+                {
+                    return Math.Pow(ratio,10.0);
+                }
+                else
+                {
+                    double accuracy = (0.89976) * Math.Pow(ratio, 7.7095) + 0.111;
+                    return accuracy;
+                }
+            }
+            return -1.0;
         }
 
         /// <summary>
