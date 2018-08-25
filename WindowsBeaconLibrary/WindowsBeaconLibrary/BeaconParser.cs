@@ -481,30 +481,35 @@ namespace Altbeacon.Beacon
             {
                 // var buffer = advertisement.ManufacturerData.GetEnumerator().Current.Data;
                 var dataEnumerator = advertisement.ManufacturerData.GetEnumerator();
-                dataEnumerator.MoveNext();
-                var manufacturerTypeCode = dataEnumerator.Current.CompanyId;
-                buffer = dataEnumerator.Current.Data;
-                DataReader dataReader = DataReader.FromBuffer(buffer);
-                byte[] bytesWithoutTypeCode = new byte[buffer.Length];
-                dataReader.ReadBytes(bytesWithoutTypeCode);
-                bytes = new byte[buffer.Length + 2];
-                bytes[0] = (byte)(manufacturerTypeCode & 0xff);
-                bytes[1] = (byte)(manufacturerTypeCode >> 8);
-                // shift up all bytes by 2 to make room for manufacturer code
-                for (int i = 0; i < bytesWithoutTypeCode.Length; i++)
+               if (dataEnumerator.MoveNext())
                 {
-                    bytes[i + 2] = bytesWithoutTypeCode[i];
+                    var manufacturerTypeCode = dataEnumerator.Current.CompanyId;
+                    buffer = dataEnumerator.Current.Data;
+                    DataReader dataReader = DataReader.FromBuffer(buffer);
+                    byte[] bytesWithoutTypeCode = new byte[buffer.Length];
+                    dataReader.ReadBytes(bytesWithoutTypeCode);
+                    bytes = new byte[buffer.Length + 2];
+                    bytes[0] = (byte)(manufacturerTypeCode & 0xff);
+                    bytes[1] = (byte)(manufacturerTypeCode >> 8);
+                    // shift up all bytes by 2 to make room for manufacturer code
+                    for (int i = 0; i < bytesWithoutTypeCode.Length; i++)
+                    {
+                        bytes[i + 2] = bytesWithoutTypeCode[i];
+                    }
+
                 }
             }
             // section 22 is service data
             else if (advertisement.GetSectionsByType(22) != null)
             {
                 var dataEnumerator = advertisement.GetSectionsByType(22).GetEnumerator();
-                dataEnumerator.MoveNext();
-                buffer = dataEnumerator.Current.Data;
-                DataReader dataReader = DataReader.FromBuffer(buffer);
-                bytes = new byte[buffer.Length];
-                dataReader.ReadBytes(bytes);
+                if (dataEnumerator.MoveNext())
+                {
+                    buffer = dataEnumerator.Current.Data;
+                    DataReader dataReader = DataReader.FromBuffer(buffer);
+                    bytes = new byte[buffer.Length];
+                    dataReader.ReadBytes(bytes);
+                }
             }
             bluetoothDevice.Address = BeaconParser.GetMac(macAddress);
 
