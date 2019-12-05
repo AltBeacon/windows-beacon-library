@@ -60,10 +60,6 @@ private static void Watcher_Received(BluetoothLEAdvertisementWatcher sender, Blu
 {
 	if (args.Advertisement.ManufacturerData.Count() > 0) {
 		// Parse iBeacon
-		var buffer = args.Advertisement.ManufacturerData.ElementAt(0).Data;
-		DataReader dataReader = DataReader.FromBuffer(buffer);
-		byte[] bytes = new byte[buffer.Length];
-		dataReader.ReadBytes(bytes);
 		var beaconParser = new BeaconParser();
 		beaconParser.SetBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24");
 		Beacon beacon = beaconParser.FromAdvertisement(args.Advertisement, args.RawSignalStrengthInDBm, args.BluetoothAddress);
@@ -84,7 +80,8 @@ using Altbeacon.Beacon;
 
 private static BluetoothLEAdvertisementWatcher Watcher = new BluetoothLEAdvertisementWatcher();
 
-private startLookingForBeacons() {
+private startLookingForBeacons()
+{
   Watcher.Received += Watcher_Received;
   OLogger.Debug("Starting scan");
   Watcher.Start();
@@ -110,19 +107,16 @@ private static void Watcher_Received(BluetoothLEAdvertisementWatcher sender, Blu
 	RssiTracker.Add(GetMac(args.BluetoothAddress), args.RawSignalStrengthInDBm);
 
 	Beacon beacon = null;
-	if (args.Advertisement.ManufacturerData.Count() > 0) {
+	if (args.Advertisement.ManufacturerData.Count() > 0)
+	{
 		// Parse iBeacon
-		var buffer = args.Advertisement.ManufacturerData.ElementAt(0).Data;
-		DataReader dataReader = DataReader.FromBuffer(buffer);
-		byte[] bytes = new byte[buffer.Length];
-		dataReader.ReadBytes(bytes);
 		var beaconParser = new BeaconParser();
 		beaconParser.SetBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24");
 		beacon = beaconParser.FromAdvertisement(args.Advertisement, args.RawSignalStrengthInDBm, args.BluetoothAddress);
-			if (beacon != null)
-			{
-				OLogger.Debug("Found iBeacon: UUID=" + beacon.Id1 + " major=" + beacon.Id2 + " minor=" + beacon.Id3 + " distance: " + beacon.Distance);
-			}
+		if (beacon != null)
+		{
+			OLogger.Debug("Found iBeacon: UUID=" + beacon.Id1 + " major=" + beacon.Id2 + " minor=" + beacon.Id3 + " distance: " + beacon.Distance);
+		}
 
 	}
 	else
